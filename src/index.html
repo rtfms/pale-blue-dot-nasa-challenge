@@ -202,13 +202,13 @@
     world.controls().autoRotateSpeed = 1.8;
 
     // fetch the list of the countries and display them on the globe
-    fetch('../data/countries.geojson')
+    fetch('data/countries.geojson')
         .then(res => res.json())
         .then(countries => {
             countriesList = countries.features.filter(d => d.properties.ISO_A2 !== 'AQ');
         }).then(() =>
         // fetch the list of cities and display it
-        fetch('../data/cities.geojson')
+        fetch('data/cities.geojson')
             .then(res => res.json())
             .then(cities => {
                 cityList = cities.features;
