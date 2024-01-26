@@ -15,18 +15,19 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/js/bootstrap.min.js"
             integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
             crossorigin="anonymous"></script>
-    <title>Pale Blue Dot Water Access</title>
+    <title>Pale Blue Dot Terrestrial Water Storage</title>
     <script src="//unpkg.com/d3"></script>
     <script src="//unpkg.com/globe.gl"></script>
     <style>
-    body {
-        margin: 0;
-        background-color: black;
-        color: lightgray;
-    }
-    .hover-info {
-        color: #fff;
-    }
+        body {
+            margin: 0;
+            background-color: black;
+            color: lightgray;
+        }
+
+        .hover-info {
+            color: #fff;
+        }
     </style>
 </head>
 
@@ -36,11 +37,29 @@
     <div class="row">
         <!-- year selector -->
         <div class="col-sm">
-            <select class="form-select" aria-label="Default select example" id="year">
+            <select class="form-select on-change-year" aria-label="Default select example" id="year">
                 <option selected>Year</option>
-                <option value="1">2007</option>
-                <option value="2">Two</option>
-                <option value="3">Three</option>
+                <option value="2003">2003</option>
+                <option value="2004">2004</option>
+                <option value="2005">2005</option>
+                <option value="2007">2007</option>
+                <option value="2006">2006</option>
+                <option value="2008">2008</option>
+                <option value="2009">2009</option>
+                <option value="2010">2010</option>
+                <option value="2011">2011</option>
+                <option value="2012">2012</option>
+                <option value="2013">2013</option>
+                <option value="2014">2014</option>
+                <option value="2015">2015</option>
+                <option value="2016">2016</option>
+                <option value="2017">2017</option>
+                <option value="2018">2018</option>
+                <option value="2019">2019</option>
+                <option value="2020">2020</option>
+                <option value="2021">2021</option>
+                <option value="2022">2022</option>
+                <option value="2023">2023</option>
             </select>
         </div>
         <!-- makes the globe spin -->
@@ -88,6 +107,8 @@
     // global vars
     let countriesList = []; // the list of the countries to display (to be fetched below)
     let cityList = [];
+    let timelapse; // timelapse handle, see below
+    let currentYear = 2023; // the year currently displayed in the dataviz
     const alpha = '66'; // transparency for the countries layer
     //[500, 282400000, 706000000, 1129600000, 1412000000]
     /*
@@ -101,7 +122,7 @@
     a population less than this value.
     The third quartile (Q3) is 83,294,633. This means that 75% of the countries have a population less than this value.
      */
-    const colorScale = d3.scaleLinear().domain([500, 1000000, 45500000, 83300000, 1412000000]).range(["#009900"+alpha, "#00aa00"+alpha, "#eeee00"+alpha, "#ff0000"+alpha, "#aa0000"+alpha]);
+    const colorScale = d3.scaleLinear().domain([500, 1000000, 45500000, 83300000, 1412000000]).range(["#009900" + alpha, "#00aa00" + alpha, "#eeee00" + alpha, "#ff0000" + alpha, "#aa0000" + alpha]);
     const world = Globe()(document.getElementById('globeViz'));
 
     /******************* functions ***********************/
@@ -111,7 +132,29 @@
             world.controls().autoRotate = $('#spin').is(":checked");
             world.polygonsData($('#countries').is(":checked") ? countriesList : []);
             world.labelsData($('#cities').is(":checked") ? cityList : []);
+            if($('#timelapse').is(":checked")) {
+                if( timelapse ) { // just a precaution to make sure two timers are not running at the same time
+                    clearInterval(timelapse);
+                }
+                timelapse = setInterval(() => {
+                    currentYear++;
+                    if( currentYear > 2023 ) {
+                        currentYear = 2003;
+                    }
+                    $('#year').val(currentYear);
+                    updateVisualizationYear();
+                }, 500);
+            } else {
+                clearInterval(timelapse);
+            }
         }
+
+    // this will update the visualization year. It's done separately from updateVisualization in order to improve
+    // the performance (I don't want to reset the cities and countries every time the year changes, it's too
+    // expensive in the timelapse)
+    const updateVisualizationYear = () => {
+        world.globeImageUrl('img/GIOVANNI-terrestrial-water-storage-' + $('#year').val() + '.png');
+    }
     // the world needs to adjust its size to the window on every resize
     const resizeWorld = () => {
         world.width($(window).width());
@@ -129,8 +172,8 @@
         // general world visualization parameters
         .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
         .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
-        .globeImageUrl('img/test2.png')
-        .pointOfView({altitude: 4}, 5000)
+        .globeImageUrl('img/GIOVANNI-terrestrial-water-storage-2023.png')
+        .pointOfView({altitude: 2}, 5000)
         // countries visualization parameters
         .polygonStrokeColor(feat => 'rgba(0, 0, 0, 0.8)')
         //.polygonCapColor(feat => 'rgba(200, 0, 0, 0.6)')
@@ -170,10 +213,12 @@
             .then(cities => {
                 cityList = cities.features;
             }))
-        .then(updateVisualization);
+        .then(updateVisualization)
+        .then(updateVisualizationYear);
 
     // Update the visualization based on the selected options
     $('.on-change').change(updateVisualization);
+    $('.on-change-year').change(updateVisualizationYear);
     // resize the world on window resize
     let resizeHandler = null;
     window.onresize = () => {
