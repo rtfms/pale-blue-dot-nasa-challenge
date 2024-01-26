@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<!-- Pale Blue Dot NASA Challenge data visualization -->
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css"
+          integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+            integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.14.7/dist/umd/popper.min.js"
+            integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/js/bootstrap.min.js"
+            integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+            crossorigin="anonymous"></script>
+    <title>Pale Blue Dot Water Access</title>
+    <script src="//unpkg.com/d3"></script>
+    <script src="//unpkg.com/globe.gl"></script>
+    <style>
+    body {
+        margin: 0;
+        background-color: black;
+        color: lightgray;
+    }
+    .hover-info {
+        color: #fff;
+    }
+    </style>
+</head>
+
+<body>
+<!-- the menu at the top of the globe -->
+<div class="container" id="controls">
+    <div class="row">
+        <!-- year selector -->
+        <div class="col-sm">
+            <select class="form-select" aria-label="Default select example" id="year">
+                <option selected>Year</option>
+                <option value="1">2007</option>
+                <option value="2">Two</option>
+                <option value="3">Three</option>
+            </select>
+        </div>
+        <!-- makes the globe spin -->
+        <div class="col-sm">
+            <div class="form-check">
+                <input class="form-check-input on-change" type="checkbox" value="" id="spin">
+                <label class="form-check-label" for="spin">
+                    Spin
+                </label>
+            </div>
+        </div>
+        <!-- starts/stops the timelapse -->
+        <div class="col-sm">
+            <div class="form-check">
+                <input class="form-check-input on-change" type="checkbox" value="" id="timelapse">
+                <label class="form-check-label" for="timelapse">
+                    Timelapse
+                </label>
+            </div>
+        </div>
+        <!-- shows/hides the countries -->
+        <div class="col-sm">
+            <div class="form-check">
+                <input class="form-check-input on-change" type="checkbox" value="" id="countries" checked>
+                <label class="form-check-label" for="spin">
+                    Countries
+                </label>
+            </div>
+        </div>
+        <!-- shows/hides the cities -->
+        <div class="col-sm">
+            <div class="form-check">
+                <input class="form-check-input on-change" type="checkbox" value="" id="cities" checked>
+                <label class="form-check-label" for="spin">
+                    Cities
+                </label>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- the globe itself -->
+<div id="globeViz"></div>
+
+<script>
+    // global vars
+    let countriesList = []; // the list of the countries to display (to be fetched below)
+    let cityList = [];
+    const alpha = '66'; // transparency for the countries layer
+    //[500, 282400000, 706000000, 1129600000, 1412000000]
+    /*
+    ChatGPT found that
+    According to the United Nations Population Division estimates1, the median of the population for all countries in
+    the world as of July 2023 is 45,504,560. This means that half of the countries have a population greater than this
+    value, and half have a population less than this value.
+    The quartiles of the population for all countries in the world are as follows:
+    The first quartile (Q1) is 9,900,000. This means that 25% of the countries have a population less than this value.
+    The second quartile (Q2) is the same as the median, which is 45,504,560. This means that 50% of the countries have
+    a population less than this value.
+    The third quartile (Q3) is 83,294,633. This means that 75% of the countries have a population less than this value.
+     */
+    const colorScale = d3.scaleLinear().domain([500, 1000000, 45500000, 83300000, 1412000000]).range(["#009900"+alpha, "#00aa00"+alpha, "#eeee00"+alpha, "#ff0000"+alpha, "#aa0000"+alpha]);
+    const world = Globe()(document.getElementById('globeViz'));
+
+    /******************* functions ***********************/
+
+        // this function will update the visualization
+    const updateVisualization = () => {
+            world.controls().autoRotate = $('#spin').is(":checked");
+            world.polygonsData($('#countries').is(":checked") ? countriesList : []);
+            world.labelsData($('#cities').is(":checked") ? cityList : []);
+        }
+    // the world needs to adjust its size to the window on every resize
+    const resizeWorld = () => {
+        world.width($(window).width());
+        world.height($(window).height() - $('#controls').height());
+    }
+    // returns the value that should be mapped to the country color, in this case it's population
+    const getCountryVal = (d) => {
+        return d.properties.POP_EST;
+        //return _.get( this.rowsObj, `[${this.getRowCode(d.properties)}].finalScore`, 50 );//            f ? f.finalScore : 50;
+    }
+
+    /* World definition and configuration */
+
+    world
+        // general world visualization parameters
+        .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
+        .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
+        .globeImageUrl('img/test2.png')
+        .pointOfView({altitude: 4}, 5000)
+        // countries visualization parameters
+        .polygonStrokeColor(feat => 'rgba(0, 0, 0, 0.8)')
+        //.polygonCapColor(feat => 'rgba(200, 0, 0, 0.6)')
+        .polygonCapColor(feat => colorScale(getCountryVal(feat)))
+        .polygonSideColor(() => 'rgba(0, 100, 0, 0.05)')
+        .polygonLabel(({properties: d}) => `
+          <span class="hover-info"><b>${d.ADMIN} (${d.ISO_A2})</b> <br />
+          Population: <i>${Math.round(+d.POP_EST / 1e4) / 1e2}M</i></span>
+        `)
+        .polygonAltitude(0.007)
+        .onPolygonHover(hoverD => world
+            .polygonAltitude(d => d === hoverD ? 0.02 : 0.007)
+            .polygonCapColor(d => d === hoverD ? 'rgba(70, 130, 180, 0.6)' : colorScale(getCountryVal(d)))
+        )
+        .polygonsTransitionDuration(100)
+        // cities visualization parameters
+        .labelLat(d => d.properties.latitude)
+        .labelLng(d => d.properties.longitude)
+        .labelText(d => d.properties.name)
+        .labelSize(d => Math.sqrt(d.properties.pop_max) * 4e-4)
+        .labelDotRadius(d => Math.sqrt(d.properties.pop_max) * 4e-4)
+        .labelColor(() => 'rgba(30, 30, 30, 0.75)')
+        .labelAltitude(0.008)
+        .labelResolution(2)
+    ;
+    world.controls().autoRotateSpeed = 1.8;
+
+    // fetch the list of the countries and display them on the globe
+    fetch('../data/countries.geojson')
+        .then(res => res.json())
+        .then(countries => {
+            countriesList = countries.features.filter(d => d.properties.ISO_A2 !== 'AQ');
+        }).then(() =>
+        // fetch the list of cities and display it
+        fetch('../data/cities.geojson')
+            .then(res => res.json())
+            .then(cities => {
+                cityList = cities.features;
+            }))
+        .then(updateVisualization);
+
+    // Update the visualization based on the selected options
+    $('.on-change').change(updateVisualization);
+    // resize the world on window resize
+    let resizeHandler = null;
+    window.onresize = () => {
+        if (resizeHandler) {
+            clearTimeout(resizeHandler);
+        }
+        resizeHandler = setTimeout(resizeWorld, 1000);
+    }
+
+
+</script>
+</body>
+</html>
